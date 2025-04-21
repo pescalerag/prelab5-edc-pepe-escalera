@@ -1,0 +1,36 @@
+// Register usage:
+// R0: Current LED mask (bit position)
+// R1: BTN0 state
+// R2: Delay counter
+// R3: Constant 0x01 (for mask)
+// R4: Constant 0x80 (for wrap)
+// R5: Mask 0x01 (for button check)
+
+// --- Initialization ---
+code['h00] = {`LDI, `R0, 8'b00000001}; // Start with LED0 (rightmost)
+code['h01] = {`LDI, `R3, 8'b00000001}; // Constant for mask
+code['h02] = {`LDI, `R4, 8'b10000000}; // Constant for wrap
+code['h03] = {`LDI, `R5, 8'b00000001}; // Mask for BTN0
+
+// --- Main loop ---
+code['h04] = {`STS, `R0, 8'hf0};       // Output current LED to port00 (LEDs)
+// --- Delay en línea (10 ciclos) ---
+code['h05] = {`LDI,  `R2, 8'd10};     // Delay counter
+code['h06] = {`NOP,  11'd0};          // Padding
+code['h07] = {`SUBI, `R2, 8'd1};      // Decrement
+code['h08] = {`CPI,  `R2, 8'd0};      // Compare to zero
+code['h09] = {`BRNE, 8'h06};          // If not zero, repeat delay
+// --- Button check ---
+code['h0a] = {`LDS, `R1, 8'hf9};      // Leer port09 (botones) en R1
+code['h0b] = {`AND, `R1, 5'd0, `R5};  // R1 = R1 & R5 (enmascara BTN0)
+code['h0c] = {`BRNE, 8'h04};          // Si R1 != 0 (botón pulsado), holdear LED
+// --- Shift LED ---
+code['h0d] = {`ROL,  `R0, 8'h00};     // Avanzar LED
+code['h0e] = {`CPI,  `R0, 8'b00000000}; // Comprobar overflow
+code['h0f] = {`BRNE, 8'h04};          // Si no es cero, volver a display
+code['h10] = {`LDI,  `R0, 8'b00000001}; // Si overflow, reset a LED0
+code['h11] = {`LDI,  `R1, 8'b00000001}; // Señal ready para testbench
+code['h12] = {`STS,  `R1, 8'hf1};     // Escribir a port01 (ready)
+code['h13] = {`JMP, 3'h0, 8'h04};     // Loop back to display
+// --- End ---
+code['hFF] = {`STOP, 11'd0};
